@@ -93,47 +93,96 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!checkSearchArgs(args)) {
           throw new Error(`Invalid arguments for tool: [${name}]`);
         }
-        try {
-          const { results, success } = await processSearch({
-            ...args,
-            apiKey: SEARCH_API_KEY ?? '',
-            apiUrl: SEARCH_API_URL,
-          });
-          if (!success) {
-            throw new Error('Failed to search');
-          }
-          const resultsText = results.map((result) => (
-            `Title: ${result.title}
+        
+        let attempt = 0;
+        const maxAttempts = 2; // Original attempt + 1 retry
+        
+        while (attempt < maxAttempts) {
+          try {
+            const { results, success } = await processSearch({
+              ...args,
+              apiKey: SEARCH_API_KEY ?? '',
+              apiUrl: SEARCH_API_URL,
+            });
+            
+            // Check if we got a valid response
+            if (!success) {
+              throw new Error('Failed to search');
+            }
+            
+            // Check if results is empty or invalid
+            if (!results || results.length === 0) {
+              if (attempt < maxAttempts - 1) {
+                attempt++;
+                server.sendLoggingMessage({
+                  level: 'warning',
+                  data: `[${new Date().toISOString()}] Search returned empty results, retrying... (attempt ${attempt + 1}/${maxAttempts})`,
+                });
+                continue;
+              } else {
+                // Last attempt failed, return empty results
+                server.sendLoggingMessage({
+                  level: 'warning',
+                  data: `[${new Date().toISOString()}] Search returned empty results after ${maxAttempts} attempts`,
+                });
+              }
+            }
+            
+            const resultsText = results.map((result) => (
+              `Title: ${result.title}
 URL: ${result.url}
 Description: ${result.snippet}
 ${result.markdown ? `Content: ${result.markdown}` : ''}`
-          ));
-          return {
-            content: [
-              {
-                type: 'text',
-                text: resultsText.join('\n\n'),
-              },
-            ],
-            results,
-            success,
-          };
-        } catch (error) {
-          server.sendLoggingMessage({
-            level: 'error',
-            data: `[${new Date().toISOString()}] Error searching: ${error}`,
-          });
-          const msg = error instanceof Error ? error.message : 'Unknown error';
-          return {
-            success: false,
-            content: [
-              {
-                type: 'text',
-                text: msg,
-              },
-            ],
-          };
+            ));
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: resultsText.join('\n\n'),
+                },
+              ],
+              results,
+              success,
+            };
+          } catch (error) {
+            if (attempt < maxAttempts - 1) {
+              attempt++;
+              server.sendLoggingMessage({
+                level: 'warning',
+                data: `[${new Date().toISOString()}] Search attempt ${attempt} failed: ${error}, retrying... (attempt ${attempt + 1}/${maxAttempts})`,
+              });
+              continue;
+            } else {
+              // Last attempt failed, throw the error
+              server.sendLoggingMessage({
+                level: 'error',
+                data: `[${new Date().toISOString()}] Error searching after ${maxAttempts} attempts: ${error}`,
+              });
+              const msg = error instanceof Error ? error.message : 'Unknown error';
+              return {
+                success: false,
+                content: [
+                  {
+                    type: 'text',
+                    text: msg,
+                  },
+                ],
+              };
+            }
+          }
         }
+        
+        // Fallback return (should never reach here, but required for TypeScript)
+        return {
+          success: false,
+          content: [
+            {
+              type: 'text',
+              text: 'Search failed after all attempts',
+            },
+          ],
+        };
+        break;
       }
       case 'one_scrape': {
         if (!checkScrapeArgs(args)) {
