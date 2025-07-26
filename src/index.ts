@@ -1,11 +1,24 @@
 #!/usr/bin/env node
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import  { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { ISearchRequestOptions, ISearchResponse, SearchProvider } from './interface.js';
-import { bingSearch, duckDuckGoSearch, searxngSearch, tavilySearch, localSearch } from './search/index.js';
-import { SEARCH_TOOL, EXTRACT_TOOL, SCRAPE_TOOL, MAP_TOOL } from './tools.js';
+import {
+  ISearchRequestOptions,
+  ISearchResponse,
+  SearchProvider,
+} from './interface.js';
+import {
+  bingSearch,
+  duckDuckGoSearch,
+  searxngSearch,
+  tavilySearch,
+  localSearch,
+} from './search/index.js';
+import { SEARCH_TOOL } from './tools.js';
 import FirecrawlApp, { MapParams, ScrapeParams } from '@mendable/firecrawl-js';
 import dotenvx from '@dotenvx/dotenvx';
 import { SafeSearchType } from 'duck-duck-scrape';
@@ -15,7 +28,8 @@ dotenvx.config();
 // search api
 const SEARCH_API_URL = process.env.SEARCH_API_URL;
 const SEARCH_API_KEY = process.env.SEARCH_API_KEY;
-const SEARCH_PROVIDER: SearchProvider = process.env.SEARCH_PROVIDER as SearchProvider ?? 'local';
+const SEARCH_PROVIDER: SearchProvider =
+  (process.env.SEARCH_PROVIDER as SearchProvider) ?? 'local';
 
 // search query params
 const SAFE_SEARCH = process.env.SAFE_SEARCH ?? 0;
@@ -64,12 +78,7 @@ const searchDefaultConfig = {
 
 // Tool handlers
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: [
-    SEARCH_TOOL,
-    EXTRACT_TOOL,
-    SCRAPE_TOOL,
-    MAP_TOOL,
-  ],
+  tools: [SEARCH_TOOL],
 }));
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -81,22 +90,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (!args) {
       throw new Error('No arguments provided');
     }
-  
+
     server.sendLoggingMessage({
       level: 'info',
       data: `[${new Date().toISOString()}] Received request for tool: [${name}]`,
     });
-  
+
     switch (name) {
       case 'one_search': {
         // check args.
         if (!checkSearchArgs(args)) {
           throw new Error(`Invalid arguments for tool: [${name}]`);
         }
-        
+
         let attempt = 0;
         const maxAttempts = 2; // Original attempt + 1 retry
-        
+
         while (attempt < maxAttempts) {
           try {
             const { results, success } = await processSearch({
@@ -104,19 +113,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               apiKey: SEARCH_API_KEY ?? '',
               apiUrl: SEARCH_API_URL,
             });
-            
+
             // Check if we got a valid response
             if (!success) {
               throw new Error('Failed to search');
             }
-            
+
             // Check if results is empty or invalid
             if (!results || results.length === 0) {
               if (attempt < maxAttempts - 1) {
                 attempt++;
                 server.sendLoggingMessage({
                   level: 'warning',
-                  data: `[${new Date().toISOString()}] Search returned empty results, retrying... (attempt ${attempt + 1}/${maxAttempts})`,
+                  data: `[${new Date().toISOString()}] Search returned empty results, retrying... (attempt ${
+                    attempt + 1
+                  }/${maxAttempts})`,
                 });
                 continue;
               } else {
@@ -127,13 +138,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 });
               }
             }
-            
-            const resultsText = results.map((result) => (
-              `Title: ${result.title}
+
+            const resultsText = results.map(
+              (result) =>
+                `Title: ${result.title}
 URL: ${result.url}
 Description: ${result.snippet}
-${result.markdown ? `Content: ${result.markdown}` : ''}`
-            ));
+${result.markdown ? `Content: ${result.markdown}` : ''}`,
+            );
             return {
               content: [
                 {
@@ -145,14 +157,17 @@ ${result.markdown ? `Content: ${result.markdown}` : ''}`
               success,
             };
           } catch (error) {
-            const isTimeoutError = error instanceof Error && error.name === 'TimeoutError';
+            const isTimeoutError =
+              error instanceof Error && error.name === 'TimeoutError';
             const errorType = isTimeoutError ? 'timeout' : 'error';
-            
+
             if (attempt < maxAttempts - 1) {
               attempt++;
               server.sendLoggingMessage({
                 level: 'warning',
-                data: `[${new Date().toISOString()}] Search attempt ${attempt} failed due to ${errorType}: ${error}, retrying... (attempt ${attempt + 1}/${maxAttempts})`,
+                data: `[${new Date().toISOString()}] Search attempt ${attempt} failed due to ${errorType}: ${error}, retrying... (attempt ${
+                  attempt + 1
+                }/${maxAttempts})`,
               });
               continue;
             } else {
@@ -161,7 +176,8 @@ ${result.markdown ? `Content: ${result.markdown}` : ''}`
                 level: 'error',
                 data: `[${new Date().toISOString()}] Error searching after ${maxAttempts} attempts (final ${errorType}): ${error}`,
               });
-              const msg = error instanceof Error ? error.message : 'Unknown error';
+              const msg =
+                error instanceof Error ? error.message : 'Unknown error';
               return {
                 success: false,
                 content: [
@@ -174,7 +190,7 @@ ${result.markdown ? `Content: ${result.markdown}` : ''}`
             }
           }
         }
-        
+
         // Fallback return (should never reach here, but required for TypeScript)
         return {
           success: false,
@@ -195,15 +211,22 @@ ${result.markdown ? `Content: ${result.markdown}` : ''}`
           const startTime = Date.now();
           server.sendLoggingMessage({
             level: 'info',
-            data: `[${new Date().toISOString()}] Scraping started for url: [${args.url}]`,
+            data: `[${new Date().toISOString()}] Scraping started for url: [${
+              args.url
+            }]`,
           });
 
           const { url, ...scrapeArgs } = args;
-          const { content, success, result } = await processScrape(url, scrapeArgs);
+          const { content, success, result } = await processScrape(
+            url,
+            scrapeArgs,
+          );
 
           server.sendLoggingMessage({
             level: 'info',
-            data: `[${new Date().toISOString()}] Scraping completed in ${Date.now() - startTime}ms`,
+            data: `[${new Date().toISOString()}] Scraping completed in ${
+              Date.now() - startTime
+            }ms`,
           });
 
           return {
@@ -233,7 +256,10 @@ ${result.markdown ? `Content: ${result.markdown}` : ''}`
           throw new Error(`Invalid arguments for tool: [${name}]`);
         }
         try {
-          const { content, success, result } = await processMapUrl(args.url, args);
+          const { content, success, result } = await processMapUrl(
+            args.url,
+            args,
+          );
           return {
             content,
             result,
@@ -260,7 +286,7 @@ ${result.markdown ? `Content: ${result.markdown}` : ''}`
         throw new Error(`Unknown tool: ${name}`);
       }
     }
-  } catch(error) {
+  } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     server.sendLoggingMessage({
       level: 'error',
@@ -284,12 +310,16 @@ ${result.markdown ? `Content: ${result.markdown}` : ''}`
   } finally {
     server.sendLoggingMessage({
       level: 'info',
-      data: `[${new Date().toISOString()}] Request completed in ${Date.now() - startTime}ms`,
+      data: `[${new Date().toISOString()}] Request completed in ${
+        Date.now() - startTime
+      }ms`,
     });
   }
 });
 
-async function processSearch(args: ISearchRequestOptions): Promise<ISearchResponse> {
+async function processSearch(
+  args: ISearchRequestOptions,
+): Promise<ISearchResponse> {
   switch (SEARCH_PROVIDER) {
     case 'searxng': {
       // merge default config with args
@@ -326,7 +356,11 @@ async function processSearch(args: ISearchRequestOptions): Promise<ISearchRespon
     }
     case 'duckduckgo': {
       const safeSearch = args.safeSearch ?? 0;
-      const safeSearchOptions = [SafeSearchType.STRICT, SafeSearchType.MODERATE, SafeSearchType.OFF];
+      const safeSearchOptions = [
+        SafeSearchType.STRICT,
+        SafeSearchType.MODERATE,
+        SafeSearchType.OFF,
+      ];
       return await duckDuckGoSearch({
         ...searchDefaultConfig,
         ...args,
@@ -426,7 +460,9 @@ function checkSearchArgs(args: unknown): args is ISearchRequestOptions {
   );
 }
 
-function checkScrapeArgs(args: unknown): args is ScrapeParams & { url: string } {
+function checkScrapeArgs(
+  args: unknown,
+): args is ScrapeParams & { url: string } {
   return (
     typeof args === 'object' &&
     args !== null &&
@@ -455,7 +491,6 @@ async function runServer() {
       level: 'info',
       data: 'OneSearch MCP server started',
     });
-
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     process.stderr.write(`Error starting server: ${msg}\n`);
