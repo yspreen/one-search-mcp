@@ -6,7 +6,7 @@ import { ISearchRequestOptions, ISearchResponse } from '../interface.js';
 
 export async function duckDuckGoSearch(options: Omit<ISearchRequestOptions, 'safeSearch'> & SearchOptions): Promise<ISearchResponse> {
   try {
-    const { query, timeout = 10000, safeSearch = DDG.SafeSearchType.OFF, retry = { retries: 3 }, ...searchOptions } = options;
+    const { query, timeout = 5000, safeSearch = DDG.SafeSearchType.OFF, retry = { retries: 3 }, ...searchOptions } = options;
   
     const res = await asyncRetry(
       () => {

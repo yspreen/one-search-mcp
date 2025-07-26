@@ -25,7 +25,7 @@ const ENGINES = process.env.ENGINES ?? 'all';
 const FORMAT = process.env.FORMAT ?? 'json';
 const LANGUAGE = process.env.LANGUAGE ?? 'auto';
 const TIME_RANGE = process.env.TIME_RANGE ?? '';
-const DEFAULT_TIMEOUT = process.env.TIMEOUT ?? 10000;
+const DEFAULT_TIMEOUT = process.env.TIMEOUT ?? 5000;
 
 // firecrawl api
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
@@ -145,18 +145,21 @@ ${result.markdown ? `Content: ${result.markdown}` : ''}`
               success,
             };
           } catch (error) {
+            const isTimeoutError = error instanceof Error && error.name === 'TimeoutError';
+            const errorType = isTimeoutError ? 'timeout' : 'error';
+            
             if (attempt < maxAttempts - 1) {
               attempt++;
               server.sendLoggingMessage({
                 level: 'warning',
-                data: `[${new Date().toISOString()}] Search attempt ${attempt} failed: ${error}, retrying... (attempt ${attempt + 1}/${maxAttempts})`,
+                data: `[${new Date().toISOString()}] Search attempt ${attempt} failed due to ${errorType}: ${error}, retrying... (attempt ${attempt + 1}/${maxAttempts})`,
               });
               continue;
             } else {
               // Last attempt failed, throw the error
               server.sendLoggingMessage({
                 level: 'error',
-                data: `[${new Date().toISOString()}] Error searching after ${maxAttempts} attempts: ${error}`,
+                data: `[${new Date().toISOString()}] Error searching after ${maxAttempts} attempts (final ${errorType}): ${error}`,
               });
               const msg = error instanceof Error ? error.message : 'Unknown error';
               return {
@@ -164,7 +167,7 @@ ${result.markdown ? `Content: ${result.markdown}` : ''}`
                 content: [
                   {
                     type: 'text',
-                    text: msg,
+                    text: `Search failed: ${msg}`,
                   },
                 ],
               };

@@ -119,8 +119,8 @@ export class SogouSearchEngine implements SearchEngineAdapter {
   * @returns Promise that resolves when search results are loaded
   */
   async waitForSearchResults(page: Page, timeout?: number): Promise<void> {
-    await page.waitForSelector('#pagebar_container', {
-      timeout: timeout ?? 10000,
+    await page.waitForSelector('.results', {
+      timeout: timeout ?? 5000,
     });
   }
 }

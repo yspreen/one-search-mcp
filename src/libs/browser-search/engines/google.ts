@@ -151,7 +151,7 @@ export class GoogleSearchEngine implements SearchEngineAdapter {
    */
   async waitForSearchResults(page: Page, timeout?: number): Promise<void> {
     await page.waitForSelector('#search', {
-      timeout: timeout ?? 10000,
+      timeout: timeout ?? 5000,
     });
   }
 }

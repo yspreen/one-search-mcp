@@ -138,7 +138,7 @@ export class BrowserSearch {
       },
       afterPageLoad: async (page) => {
         if (searchEngine.waitForSearchResults)
-          await searchEngine.waitForSearchResults(page, 10000);
+          await searchEngine.waitForSearchResults(page, 5000);
       },
     });
 

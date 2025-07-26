@@ -86,8 +86,8 @@ export class BaiduSearchEngine implements SearchEngineAdapter {
   * @returns Promise that resolves when search results are loaded
   */
   async waitForSearchResults(page: Page, timeout?: number): Promise<void> {
-    await page.waitForSelector('#page', {
-      timeout: timeout ?? 10000,
+    await page.waitForSelector('#wrapper_wrapper', {
+      timeout: timeout ?? 5000,
     });
   }
 }
