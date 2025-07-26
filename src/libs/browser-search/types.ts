@@ -3,7 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { BrowserInterface, LaunchOptions, Page } from '../browser/types.js';
-import { Logger } from '@agent-infra/logger';
+
+// Simple logger interface
+interface SimpleLogger {
+  error: (message: string, ...args: unknown[]) => void;
+  info: (message: string, ...args: unknown[]) => void;
+  warn: (message: string, ...args: unknown[]) => void;
+  debug: (message: string, ...args: unknown[]) => void;
+  success: (message: string, ...args: unknown[]) => void;
+}
 
 export type SearchResult = {
   title: string;
@@ -54,7 +62,7 @@ export interface BrowserSearchConfig {
   /**
    * Logger
    */
-  logger?: Logger;
+  logger?: SimpleLogger;
   /**
    * Custom browser
    */

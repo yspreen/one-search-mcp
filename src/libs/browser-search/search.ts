@@ -4,7 +4,6 @@
  */
 import { LocalBrowser, type BrowserInterface } from '../browser/index.js';
 import { READABILITY_SCRIPT } from './readability.js';
-import { Logger, defaultLogger } from '@agent-infra/logger';
 import {
   extractPageInformation,
   toMarkdown,
@@ -19,19 +18,28 @@ import type {
   LocalBrowserSearchEngine,
 } from './types.js';
 
+// Simple logger to avoid potential browser context issues
+const logger = {
+  error: (message: string, ...args: unknown[]) => console.error(message, ...args),
+  info: (message: string, ...args: unknown[]) => console.info(message, ...args),
+  warn: (message: string, ...args: unknown[]) => console.warn(message, ...args),
+  debug: (message: string, ...args: unknown[]) => console.debug(message, ...args),
+  success: (message: string, ...args: unknown[]) => console.log(message, ...args),
+};
+
 /**
  * Service class for performing web searches and content extraction
  */
 export class BrowserSearch {
-  private logger: Logger;
+  private logger: typeof logger;
   private browser: BrowserInterface;
   private isBrowserOpen = false;
   private defaultEngine: LocalBrowserSearchEngine;
 
   constructor(private config: BrowserSearchConfig = {}) {
-    this.logger = config?.logger ?? defaultLogger;
-    this.browser = config.browser ?? new LocalBrowser({ logger: this.logger });
-    this.defaultEngine = config.defaultEngine ?? 'bing';
+    this.logger = config?.logger ?? logger;
+    this.defaultEngine = config?.defaultEngine ?? 'bing';
+    this.browser = config?.browser ?? new LocalBrowser();
   }
 
   /**
@@ -191,14 +199,16 @@ export class BrowserSearch {
         const content = toMarkdown(result.content);
         return { ...result, url: item.url, content, snippet: item.snippet };
       }
+      return undefined;
     } catch (e) {
       this.logger.error('Failed to visit link:', e);
+      return undefined;
     }
   }
 }
 
 declare global {
   interface Window {
-    Readability: any;
+    Readability: unknown;
   }
 }

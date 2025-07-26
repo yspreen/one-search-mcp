@@ -7,9 +7,16 @@
  */
 import Turndown from 'turndown';
 import { gfm } from 'turndown-plugin-gfm';
-import { defaultLogger as logger } from '@agent-infra/logger';
 import { Page } from '../browser/index.js';
 import UserAgent from 'user-agents';
+
+// Simple logger to avoid potential browser context issues
+const logger = {
+  error: (message: string, ...args: unknown[]) => console.error(message, ...args),
+  info: (message: string, ...args: unknown[]) => console.info(message, ...args),
+  warn: (message: string, ...args: unknown[]) => console.warn(message, ...args),
+  debug: (message: string, ...args: unknown[]) => console.debug(message, ...args),
+};
 
 /**
  * Safely parses a URL string into a URL object
@@ -46,6 +53,43 @@ export const shouldSkipDomain = (url: string) => {
 };
 
 /**
+ * Stealth script to make the browser appear more like a regular user browser
+ */
+const STEALTH_SCRIPT = `
+  /**
+   * Override the navigator.webdriver property
+   * The webdriver read-only property of the navigator interface indicates whether the user agent is controlled by automation.
+   * @see https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver
+   */
+  Object.defineProperty(navigator, 'webdriver', {
+    get: () => undefined,
+  });
+
+  // Mock languages and plugins to mimic a real browser
+  Object.defineProperty(navigator, 'languages', {
+    get: () => ['en-US', 'en'],
+  });
+
+  Object.defineProperty(navigator, 'plugins', {
+    get: () => [{}, {}, {}, {}, {}],
+  });
+
+  // Redefine the headless property
+  Object.defineProperty(navigator, 'headless', {
+    get: () => false,
+  });
+
+  // Override the permissions API
+  const originalQuery = window.navigator.permissions.query;
+  window.navigator.permissions.query = (parameters) =>
+    parameters.name === 'notifications'
+      ? Promise.resolve({
+        state: Notification.permission,
+      })
+      : originalQuery(parameters);
+`;
+
+/**
  * Applies various stealth techniques to make the browser appear more like a regular user browser
  * @param page - Puppeteer page object
  */
@@ -59,39 +103,7 @@ export async function applyStealthScripts(page: Page) {
   /**
    * https://intoli.com/blog/not-possible-to-block-chrome-headless/chrome-headless-test.html
    */
-  await page.evaluate(() => {
-    /**
-     * Override the navigator.webdriver property
-     * The webdriver read-only property of the navigator interface indicates whether the user agent is controlled by automation.
-     * @see https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver
-     */
-    Object.defineProperty(navigator, 'webdriver', {
-      get: () => undefined,
-    });
-
-    // Mock languages and plugins to mimic a real browser
-    Object.defineProperty(navigator, 'languages', {
-      get: () => ['en-US', 'en'],
-    });
-
-    Object.defineProperty(navigator, 'plugins', {
-      get: () => [{}, {}, {}, {}, {}],
-    });
-
-    // Redefine the headless property
-    Object.defineProperty(navigator, 'headless', {
-      get: () => false,
-    });
-
-    // Override the permissions API
-    const originalQuery = window.navigator.permissions.query;
-    window.navigator.permissions.query = (parameters) =>
-      parameters.name === 'notifications'
-        ? Promise.resolve({
-          state: Notification.permission,
-        } as PermissionStatus)
-        : originalQuery(parameters);
-  });
+  await page.evaluate(STEALTH_SCRIPT);
 }
 
 /**
