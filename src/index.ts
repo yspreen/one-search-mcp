@@ -104,7 +104,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         let attempt = 0;
-        const maxAttempts = 2; // Original attempt + 1 retry
+        const maxAttempts = 4; // Original attempt + 3 retries
 
         while (attempt < maxAttempts) {
           try {
