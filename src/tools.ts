@@ -7,7 +7,7 @@ import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
 // tools definition
 export const SEARCH_TOOL: Tool = {
-  name: 'one_search',
+  name: 'google',
   description:
     'Search and retrieve content from web pages. ' +
     'Returns SERP results by default (url, title, description).',
@@ -45,13 +45,7 @@ export const SEARCH_TOOL: Tool = {
       timeRange: {
         type: 'string',
         description: 'Time range for search results (default: all)',
-        enum: [
-          'all',
-          'day',
-          'week',
-          'month',
-          'year',
-        ],
+        enum: ['all', 'day', 'week', 'month', 'year'],
       },
     },
     required: ['query'],

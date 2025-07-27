@@ -97,7 +97,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     });
 
     switch (name) {
-      case 'one_search': {
+      case 'google': {
         // check args.
         if (!checkSearchArgs(args)) {
           throw new Error(`Invalid arguments for tool: [${name}]`);
